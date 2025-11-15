@@ -24,39 +24,51 @@ app.post("/webhook", async (req, res) => {
   try {
     console.log("Received message:", req.body);
 
-    const userMessage = req.body?.message 
-                     || req.body?.text 
-                     || "Hello";
+    const userMessage =
+      req.body?.message ||
+      req.body?.text ||
+      req.body?.data?.input ||
+      "Hello";
 
-    // Try with gemini-pro first (older stable model)
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-001"  // Try with -latest suffix
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-001"
     });
 
     const result = await model.generateContent(userMessage);
     const aiResponse = result.response.text();
 
+    // ✅ ZOHO VALID RESPONSE FORMAT
     return res.json({
-      type: "reply",
-      text: aiResponse
+      action: "reply",
+      replies: [
+        {
+          type: "text",
+          text: aiResponse
+        }
+      ]
     });
 
   } catch (error) {
     console.error("Webhook Error:", error);
-    return res.status(500).json({
-      type: "reply",
-      text: "Server error, please try again.",
-      error: error.message
+    return res.json({
+      action: "reply",
+      replies: [
+        {
+          type: "text",
+          text: "Error: " + error.message
+        }
+      ]
     });
   }
 });
+
 
 // Add this to check available models
 app.get("/check-models", async (req, res) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
     const result = await model.generateContent("Say hello");
-    res.json({ 
+    res.json({
       success: true, 
       message: "Model works!",
       response: result.response.text() 
