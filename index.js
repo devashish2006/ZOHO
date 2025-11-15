@@ -22,72 +22,95 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("Incoming Body:", req.body);
+    console.log("=== FULL WEBHOOK PAYLOAD ===");
+    console.log(JSON.stringify(req.body, null, 2));
+    console.log("===========================");
 
-    const userMessage =
-      req.body?.message ||
-      req.body?.text ||
-      req.body?.data?.input ||
-      "Hello";
+    // Extract user message from SalesIQ webhook payload
+    let userMessage = "Hello";
+    
+    // SalesIQ sends the message in different formats
+    if (req.body?.question) {
+      userMessage = req.body.question;
+    } else if (req.body?.message) {
+      userMessage = req.body.message;
+    } else if (req.body?.text) {
+      userMessage = req.body.text;
+    } else if (req.body?.visitor?.question) {
+      userMessage = req.body.visitor.question;
+    }
+
+    console.log("Extracted Message:", userMessage);
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-001"
+      model: "gemini-1.5-flash-latest"
     });
 
     const result = await model.generateContent(userMessage);
     const aiResponse = result.response.text();
 
-    // ✅ SALESIQ ZOBOT APPROVED RESPONSE FORMAT
-    return res.json({
+    console.log("AI Response:", aiResponse);
+
+    // SalesIQ Zobot response format
+    const response = {
       action: "reply",
-      replies: [
-        {
-          type: "text",
-          text: aiResponse
-        }
-      ]
-    });
+      replies: [aiResponse]
+    };
+
+    console.log("Sending Response:", JSON.stringify(response, null, 2));
+    
+    return res.status(200).json(response);
 
   } catch (err) {
-    console.error("WEBHOOK ERROR:", err);
+    console.error("WEBHOOK ERROR:", err.message);
+    console.error("Stack:", err.stack);
 
-    return res.json({
+    return res.status(200).json({
       action: "reply",
-      replies: [
-        {
-          type: "text",
-          text: "⚠️ Something went wrong: " + err.message
-        }
-      ]
+      replies: ["I'm having trouble processing that. Please try again."]
     });
   }
 });
 
-
-
-// Add this to check available models
-app.get("/check-models", async (req, res) => {
+// Test endpoint to verify Gemini API
+app.get("/test-gemini", async (req, res) => {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-    const result = await model.generateContent("Say hello");
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash-latest" 
+    });
+    const result = await model.generateContent("Say hello in a friendly way");
     res.json({
-      success: true, 
-      message: "Model works!",
-      response: result.response.text() 
+      success: true,
+      response: result.response.text()
     });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ 
+    status: "ok",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test webhook format
+app.post("/test-webhook", (req, res) => {
+  console.log("Test webhook received:", JSON.stringify(req.body, null, 2));
+  res.json({
+    received: req.body,
+    action: "reply",
+    replies: ["Test successful!"]
+  });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`📝 Webhook endpoint: http://localhost:${PORT}/webhook`);
+  console.log(`🧪 Test endpoint: http://localhost:${PORT}/test-gemini`);
 });
