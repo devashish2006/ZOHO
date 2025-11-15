@@ -26,20 +26,8 @@ app.post("/webhook", async (req, res) => {
     console.log(JSON.stringify(req.body, null, 2));
     console.log("===========================");
 
-    // Extract user message from SalesIQ webhook payload
-    let userMessage = "Hello! How can I help you today?";
-    
-    // SalesIQ sends the message in different formats
-    if (req.body?.question) {
-      userMessage = req.body.question;
-    } else if (req.body?.message) {
-      userMessage = req.body.message;
-    } else if (req.body?.text) {
-      userMessage = req.body.text;
-    } else if (req.body?.visitor?.question) {
-      userMessage = req.body.visitor.question;
-    } else if (req.body?.handler === "trigger") {
-      // This is the initial bot trigger, send a greeting
+    // Handle initial bot trigger
+    if (req.body?.handler === "trigger") {
       const response = {
         action: "reply",
         replies: ["Hello! I'm your AI assistant. How can I help you today?"]
@@ -48,7 +36,30 @@ app.post("/webhook", async (req, res) => {
       return res.status(200).json(response);
     }
 
+    // Extract user message from SalesIQ webhook payload
+    let userMessage = "Hello! How can I help you today?";
+    
+    // SalesIQ sends the message in different formats
+    if (req.body?.message?.text) {
+      userMessage = req.body.message.text;
+    } else if (req.body?.question) {
+      userMessage = req.body.question;
+    } else if (req.body?.message) {
+      userMessage = typeof req.body.message === 'string' ? req.body.message : req.body.message.text;
+    } else if (req.body?.text) {
+      userMessage = req.body.text;
+    }
+
     console.log("Extracted Message:", userMessage);
+
+    // Ensure userMessage is a string
+    if (typeof userMessage !== 'string') {
+      console.error("Invalid message format:", userMessage);
+      return res.status(200).json({
+        action: "reply",
+        replies: ["I didn't quite catch that. Could you try again?"]
+      });
+    }
 
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash"
