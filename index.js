@@ -27,7 +27,7 @@ app.post("/webhook", async (req, res) => {
     console.log("===========================");
 
     // Extract user message from SalesIQ webhook payload
-    let userMessage = "Hello";
+    let userMessage = "Hello! How can I help you today?";
     
     // SalesIQ sends the message in different formats
     if (req.body?.question) {
@@ -38,12 +38,20 @@ app.post("/webhook", async (req, res) => {
       userMessage = req.body.text;
     } else if (req.body?.visitor?.question) {
       userMessage = req.body.visitor.question;
+    } else if (req.body?.handler === "trigger") {
+      // This is the initial bot trigger, send a greeting
+      const response = {
+        action: "reply",
+        replies: ["Hello! I'm your AI assistant. How can I help you today?"]
+      };
+      console.log("Sending Initial Greeting:", JSON.stringify(response, null, 2));
+      return res.status(200).json(response);
     }
 
     console.log("Extracted Message:", userMessage);
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest"
+      model: "gemini-1.5-flash"
     });
 
     const result = await model.generateContent(userMessage);
@@ -76,7 +84,7 @@ app.post("/webhook", async (req, res) => {
 app.get("/test-gemini", async (req, res) => {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash-latest" 
+      model: "gemini-1.5-flash" 
     });
     const result = await model.generateContent("Say hello in a friendly way");
     res.json({
