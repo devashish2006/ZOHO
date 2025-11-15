@@ -22,7 +22,7 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("Received message:", req.body);
+    console.log("Incoming Body:", req.body);
 
     const userMessage =
       req.body?.message ||
@@ -37,7 +37,7 @@ app.post("/webhook", async (req, res) => {
     const result = await model.generateContent(userMessage);
     const aiResponse = result.response.text();
 
-    // ✅ ZOHO VALID RESPONSE FORMAT
+    // ✅ SALESIQ ZOBOT APPROVED RESPONSE FORMAT
     return res.json({
       action: "reply",
       replies: [
@@ -48,19 +48,21 @@ app.post("/webhook", async (req, res) => {
       ]
     });
 
-  } catch (error) {
-    console.error("Webhook Error:", error);
+  } catch (err) {
+    console.error("WEBHOOK ERROR:", err);
+
     return res.json({
       action: "reply",
       replies: [
         {
           type: "text",
-          text: "Error: " + error.message
+          text: "⚠️ Something went wrong: " + err.message
         }
       ]
     });
   }
 });
+
 
 
 // Add this to check available models
